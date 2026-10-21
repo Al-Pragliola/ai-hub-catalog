@@ -25,7 +25,7 @@ COPY scripts/prepare-image.sh scripts/prepare-image.sh
 # Only immutable revisions are accepted. No benchmark data or pre-staged
 # build/release-candidate directory is needed in the local build context.
 ARG BENCHMARK_DATA_REPOSITORY=https://github.com/red-hat-data-services/models-perf-benchmark-data.git
-ARG BENCHMARK_REVISION=4c2c0d67e6199eb7bf4505238b7e0e84391e949c
+ARG BENCHMARK_REVISION=717fe9fcfe48582099bd2f4a33bf00db66a7447e
 ARG CATALOG_DATA_REPOSITORY=https://github.com/red-hat-data-services/ai-hub-catalog.git
 ARG CATALOG_REVISION=
 ARG VALIDATE_RELEASE
