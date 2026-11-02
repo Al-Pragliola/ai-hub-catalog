@@ -1,6 +1,6 @@
 ---
 name: sync-mmc
-description: Sync this repository with red-hat-data-services/model-metadata-collection (mmc) main using make sync-mmc. Resolves the conflicts left by the ownership rules, reviews downstream and consumer impact, handles release-branch fixes, and drafts the sync PR description. Use when asked to sync, update from, or merge upstream mmc or opendatahub-io/model-metadata-collection.
+description: Sync this repository with red-hat-data-services/model-metadata-collection (mmc) main using make sync-mmc. Resolves the conflicts left by the ownership rules, reviews downstream and consumer impact, handles release-branch fixes, and summarizes the result for review. Use when asked to sync, update from, or merge upstream mmc or opendatahub-io/model-metadata-collection.
 ---
 
 # Sync with model-metadata-collection
@@ -12,12 +12,9 @@ script's steps; run it.
 
 ## Hard limits
 
-- Do not commit, push, or open a PR until the user has reviewed the result and
-  asked for it. When asked, commit with `git commit -s --no-edit`, keeping the
-  merge.
-- Push only to the remote the user names, normally their fork. Never push to a
-  red-hat-data-services repository.
-- Never squash or rebase a sync, and never sync into `release`.
+- Never commit, push, or open a PR. The skill ends with the merge resolved and
+  staged; committing and publishing it is left to the user.
+- Never sync into `release`.
 - Never hand-edit paths in `.sync/upstream-paths`. If upstream content is wrong,
   report it as an upstream fix.
 - Never add `.tekton/odh-*` files. They build another Konflux component.
@@ -99,7 +96,7 @@ delta small and isolated:
 
 ## Report
 
-Present to the user, and reuse as the PR description once they ask for a PR:
+Present to the user for review:
 
 - Upstream range: previous and new mmc revisions.
 - Conflicts and how each was resolved.
