@@ -403,7 +403,15 @@ docker-build-fixture: validate-release-candidate-fixture
 		-f Dockerfile.fixture \
 		--build-arg RELEASE_CANDIDATE_DIR="$(FIXTURE_RELEASE_CANDIDATE_DIR)" \
 		-t $(DOCKER_FULL_IMAGE_NAME)-fixture .
-	
+
+# Manual sync with model-metadata-collection; see .sync/README.md.
+.PHONY: sync-mmc sync-mmc-check
+sync-mmc:
+	sh scripts/sync-mmc.sh merge
+
+sync-mmc-check:
+	sh scripts/sync-mmc.sh check
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -442,4 +450,6 @@ help:
 	@echo "  validate-release-candidate-fixture - Validate the committed non-product CI fixture"
 	@echo "  docker-build - Qualify benchmarks and build the unified data image"
 	@echo "  docker-build-fixture - Build a local image-layout proof with fixture data"
+	@echo "  sync-mmc     - Merge model-metadata-collection main into the current sync branch"
+	@echo "  sync-mmc-check - Verify a sync merge before committing it"
 	@echo "  help         - Show this help"
