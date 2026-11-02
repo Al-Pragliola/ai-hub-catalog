@@ -19,7 +19,6 @@ scripts/prepare-image.sh
 scripts/test-prepare-image.sh
 
 # This sync tooling.
-.sync/
-scripts/sync-mmc.sh
+scripts/sync-mmc/
 .agents/skills/sync-mmc/
-.claude/skills/sync-mmc
+.claude/skills

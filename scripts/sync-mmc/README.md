@@ -5,11 +5,11 @@ This repository is a downstream of
 (mmc), which contains
 [`opendatahub-io/model-metadata-collection`](https://github.com/opendatahub-io/model-metadata-collection)
 plus Red Hat fixes. It packages the catalogs for the RHOAI versions listed in
-[`release/supported-model-catalog-versions.txt`](../release/supported-model-catalog-versions.txt),
+[`release/supported-model-catalog-versions.txt`](../../release/supported-model-catalog-versions.txt),
 and ships off-cycle releases from the `release` branch.
 
 Syncs are run by people, using `make sync-mmc`. The
-[`sync-mmc` agent skill](../.agents/skills/sync-mmc/SKILL.md) runs the same
+[`sync-mmc` agent skill](../../.agents/skills/sync-mmc/SKILL.md) runs the same
 procedure in Claude Code or Codex.
 
 ## Rules
@@ -77,7 +77,7 @@ resolved, downstream follow-ups, and user-visible catalog changes.
 ## Release-branch fixes
 
 Fixes can land directly on mmc release branches (`rhoai-3.6`, `rhoai-3.7-ea.1`,
-and so on) without reaching mmc `main`. `scripts/sync-mmc.sh detect` scans the
+and so on) without reaching mmc `main`. `scripts/sync-mmc/sync-mmc.sh detect` scans the
 `rhoai-X.Y*` branches at or above the oldest supported version. It lists every
 commit whose patch is missing from mmc `main` and that touches content, meaning
 paths outside [`plumbing-paths`](plumbing-paths). It also lists merges whose
@@ -98,7 +98,7 @@ reason.
 | [`upstream-paths`](upstream-paths) | Paths taken whole from upstream |
 | [`plumbing-paths`](plumbing-paths) | Build and CI paths the detector ignores |
 | [`acknowledged-commits`](acknowledged-commits) | Release-branch commits no longer reported |
-| [`../scripts/sync-mmc.sh`](../scripts/sync-mmc.sh) | `merge`, `check`, and `detect` |
+| [`sync-mmc.sh`](sync-mmc.sh) | `merge`, `check`, and `detect` |
 
 `UPSTREAM_REPOSITORY`, `UPSTREAM_BRANCH`, and `RELEASE_BRANCH_MIN` override the
 defaults. The script needs Git 2.36 or later, Go, Make, and Python 3.

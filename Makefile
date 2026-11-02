@@ -404,13 +404,13 @@ docker-build-fixture: validate-release-candidate-fixture
 		--build-arg RELEASE_CANDIDATE_DIR="$(FIXTURE_RELEASE_CANDIDATE_DIR)" \
 		-t $(DOCKER_FULL_IMAGE_NAME)-fixture .
 
-# Manual sync with model-metadata-collection; see .sync/README.md.
+# Manual sync with model-metadata-collection; see scripts/sync-mmc/README.md.
 .PHONY: sync-mmc sync-mmc-check
 sync-mmc:
-	sh scripts/sync-mmc.sh merge
+	sh scripts/sync-mmc/sync-mmc.sh merge
 
 sync-mmc-check:
-	sh scripts/sync-mmc.sh check
+	sh scripts/sync-mmc/sync-mmc.sh check
 
 # Show help
 help:

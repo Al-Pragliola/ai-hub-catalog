@@ -21,4 +21,4 @@ cmd/model-extractor/model-extractor
 
 # Local Claude Code state; shared skills are committed.
 .claude/*
-!.claude/skills/
+!.claude/skills

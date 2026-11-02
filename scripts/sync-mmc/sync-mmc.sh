@@ -1,13 +1,13 @@
 #!/bin/sh
 # Synchronize this repository with red-hat-data-services/model-metadata-collection,
 # which contains opendatahub-io/model-metadata-collection plus downstream fixes.
-# Run by people; see .sync/README.md.
+# Run by people; see scripts/sync-mmc/README.md.
 #
-#   scripts/sync-mmc.sh [merge]  merge upstream main into the current sync branch
-#   scripts/sync-mmc.sh check    verify the merge before committing
-#   scripts/sync-mmc.sh detect   report release-branch fixes missing from upstream main
+#   scripts/sync-mmc/sync-mmc.sh [merge]  merge upstream main into the current sync branch
+#   scripts/sync-mmc/sync-mmc.sh check    verify the merge before committing
+#   scripts/sync-mmc/sync-mmc.sh detect   report release-branch fixes missing from upstream main
 #
-# The merge is never committed by this script. Ownership rules live in .sync/.
+# The merge is never committed by this script. Ownership rules live next to it.
 set -eu
 
 UPSTREAM_REPOSITORY=${UPSTREAM_REPOSITORY:-https://github.com/red-hat-data-services/model-metadata-collection.git}
@@ -18,6 +18,7 @@ RELEASE_BRANCH_MIN=${RELEASE_BRANCH_MIN:-}
 SUPPORTED_VERSIONS=release/supported-model-catalog-versions.txt
 FIXTURE_REPORT=internal/releasecandidate/testdata/benchmark-qualification-report.json
 REF_PREFIX=refs/sync/mmc
+SYNC_DIR=scripts/sync-mmc
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -68,7 +69,7 @@ list_changes() {
     fi
 }
 
-# Filter out paths listed in .sync/plumbing-paths. An entry ending in / matches
+# Filter out paths listed in plumbing-paths. An entry ending in / matches
 # everything below it; any other entry matches one file.
 content_paths() {
     awk 'FILENAME == ARGV[1] {
@@ -80,7 +81,7 @@ content_paths() {
             for (entry in plumbing)
                 if ($0 == entry || (entry ~ /\/$/ && index($0, entry) == 1)) next
             print
-        }' .sync/plumbing-paths -
+        }' "$SYNC_DIR/plumbing-paths" -
 }
 
 release_branch_min() {
@@ -140,7 +141,7 @@ release_fixes() {
             $(git rev-list --merges "$upstream..$ref"); do
             case "$seen" in *"$commit"*) continue ;; esac
             seen="$seen $commit"
-            if read_paths .sync/acknowledged-commits | grep -q "^$commit"; then
+            if read_paths "$SYNC_DIR/acknowledged-commits" | grep -q "^$commit"; then
                 continue
             fi
             content=$(git show --remerge-diff --format= --name-only "$commit" | content_paths)
@@ -166,7 +167,7 @@ report_release_fixes() {
         return 0
     fi
     printf '%s\n' "$fixes"
-    echo "Forward-port each fix to main, or record it in .sync/acknowledged-commits."
+    echo "Forward-port each fix to main, or record it in $SYNC_DIR/acknowledged-commits."
     return 1
 }
 
@@ -230,9 +231,9 @@ merge() {
     base=$(git merge-base HEAD "$upstream")
 
     section "Downstream edits to upstream-owned paths (replaced by upstream)"
-    list_changes "$base" HEAD .sync/upstream-paths
+    list_changes "$base" HEAD "$SYNC_DIR/upstream-paths"
     section "Upstream changes to downstream-owned paths (ours kept; review them)"
-    list_changes "$base" "$upstream" .sync/downstream-paths
+    list_changes "$base" "$upstream" "$SYNC_DIR/downstream-paths"
 
     section "Merging $UPSTREAM_BRANCH at $revision"
     git merge --no-ff --no-commit -m "chore(sync): merge model-metadata-collection $UPSTREAM_BRANCH
@@ -240,8 +241,8 @@ merge() {
 Upstream: $UPSTREAM_REPOSITORY
 Revision: $revision" "$upstream" >/dev/null 2>&1 || true
     git rev-parse -q --verify MERGE_HEAD >/dev/null || die "git merge did not start; run it manually to see why"
-    take_side HEAD .sync/downstream-paths
-    take_side "$upstream" .sync/upstream-paths
+    take_side HEAD "$SYNC_DIR/downstream-paths"
+    take_side "$upstream" "$SYNC_DIR/upstream-paths"
     refresh_fixture_hashes
     fixes_found=0
     report_release_fixes || fixes_found=1
@@ -250,7 +251,7 @@ Revision: $revision" "$upstream" >/dev/null 2>&1 || true
     if [ -n "$conflicts" ]; then
         section "Unresolved conflicts"
         printf '  %s\n' $conflicts
-        echo "Resolve them (see .sync/README.md), git add each file, then run 'make sync-mmc-check'."
+        echo "Resolve them (see $SYNC_DIR/README.md), git add each file, then run 'make sync-mmc-check'."
         exit 2
     fi
     check
