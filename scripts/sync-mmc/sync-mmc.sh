@@ -283,7 +283,7 @@ is_revision() {
 benchmark_git_auth() {
     token=
     if [ -n "${GITHUB_TOKEN_FILE:-}" ]; then
-        token=$(cat "$GITHUB_TOKEN_FILE")
+        token=$(cat "$GITHUB_TOKEN_FILE") || die "cannot read GITHUB_TOKEN_FILE $GITHUB_TOKEN_FILE"
     elif [ -n "${GITHUB_TOKEN:-}" ]; then
         token=$GITHUB_TOKEN
     elif command -v gh >/dev/null 2>&1; then

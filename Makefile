@@ -414,8 +414,9 @@ sync-mmc-check:
 
 # Pin models-perf-benchmark-data to REF, a branch name or a full commit SHA.
 # REF defaults to stable.
+sync-benchmark: override export REF := $(value REF)
 sync-benchmark:
-	sh scripts/sync-mmc/sync-mmc.sh benchmark $(REF)
+	sh scripts/sync-mmc/sync-mmc.sh benchmark "$$REF"
 
 test-sync-benchmark:
 	sh scripts/sync-mmc/test-sync-benchmark.sh

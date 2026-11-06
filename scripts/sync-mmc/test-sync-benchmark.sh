@@ -85,6 +85,12 @@ reject "$(printf %.7s "$commit3")" "short SHA" "not a full SHA"
 reject 0123456789abcdef0123456789abcdef01234567 "unknown SHA" "not found"
 reject "$(echo "$commit3" | tr 'a-f' 'A-F')" "uppercase SHA" "not found\|not a full SHA"
 
+# An unreadable token file is reported by the script, and nothing changes.
+if GITHUB_TOKEN_FILE=$scratch/missing-token run_sync main; then fail "unreadable token file: expected failure"; fi
+grep -q 'sync-mmc: cannot read GITHUB_TOKEN_FILE' "$scratch/err" ||
+    fail "unreadable token file: unexpected error: $(cat "$scratch/err")"
+expect_pin "$commit2" "unreadable token file"
+
 # A Dockerfile without exactly one pin line is refused.
 printf 'FROM scratch\n' > Dockerfile
 if run_sync main; then fail "missing pin line: expected failure"; fi
