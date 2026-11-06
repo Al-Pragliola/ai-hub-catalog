@@ -1,6 +1,6 @@
 ---
 name: sync-mmc
-description: Sync this repository with red-hat-data-services/model-metadata-collection (mmc) main using make sync-mmc. Resolves the conflicts left by the ownership rules, reviews downstream and consumer impact, handles release-branch fixes, and summarizes the result for review. Use when asked to sync, update from, or merge upstream mmc or opendatahub-io/model-metadata-collection.
+description: Sync this repository with red-hat-data-services/model-metadata-collection (mmc) main using make sync-mmc. Resolves the conflicts left by the ownership rules, reviews downstream and consumer impact, handles release-branch fixes, and summarizes the result for review. Also moves the models-perf-benchmark-data pin with make sync-benchmark, after checking that the chosen branch or SHA is usable. Use when asked to sync, update from, or merge upstream mmc or opendatahub-io/model-metadata-collection, or to update, bump, or pin the benchmark data.
 ---
 
 # Sync with model-metadata-collection
@@ -36,6 +36,38 @@ script's steps; run it.
 3. Resolve each remaining conflict, `git add` it, then run `make sync-mmc-check`.
 4. Work through the three reports and the consumer-impact checks below.
 5. Present the summary for the user to review (see "Report").
+
+## Updating the benchmark pin
+
+`make sync-benchmark [REF=<branch-or-full-sha>]` moves `BENCHMARK_REVISION` in
+the `Dockerfile` to a branch head or a SHA of `models-perf-benchmark-data`. `REF`
+defaults to `stable`, which can lag or be broken, and the script does not check
+that: it will happily move the pin backwards. So check before running it.
+
+1. Pick the ref: the one the user named, otherwise `stable`.
+2. Read the current pin from the `Dockerfile` and resolve the ref to a SHA
+   without cloning, for example
+   `gh api repos/red-hat-data-services/models-perf-benchmark-data/commits/<ref> --jq .sha`.
+3. Compare the pin with the target:
+   `gh api repos/red-hat-data-services/models-perf-benchmark-data/compare/<pin>...<target> --jq '{status, ahead_by, behind_by}'`.
+   - `identical`: nothing to do.
+   - `ahead`: a normal bump. List the commits in between for the report.
+   - `behind` or `diverged`: running the script would move the pin backwards or
+     sideways. Stop and ask the user, unless they asked for exactly this SHA.
+4. Look at the target's health: the status and check runs of its head commit
+   (`.../commits/<target>/status` and `.../check-runs`), and whether the ref
+   exists at all. A failing or missing branch counts as broken.
+5. If the ref is broken or behind, say so and offer alternatives: another branch,
+   or a specific SHA the user gives. Never switch refs on your own.
+6. Run `make sync-benchmark REF=<ref>` once the target is confirmed. Prefer the
+   full SHA you verified over the branch name, so the result cannot differ from
+   what you checked.
+7. Show `git diff Dockerfile` and ask the user to run `make docker-build` for
+   qualification. Do not run it yourself: it executes the benchmark
+   repository's qualifier.
+
+Report the old and new pin, the compare status, the commits in between, the
+health findings, and that qualification was not run.
 
 ## Resolving conflicts
 

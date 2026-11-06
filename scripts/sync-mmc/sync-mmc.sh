@@ -6,12 +6,18 @@
 #   scripts/sync-mmc/sync-mmc.sh [merge]  merge upstream main into the current sync branch
 #   scripts/sync-mmc/sync-mmc.sh check    verify the merge before committing
 #   scripts/sync-mmc/sync-mmc.sh detect   report release-branch fixes missing from upstream main
+#   scripts/sync-mmc/sync-mmc.sh benchmark [REF]
+#                                         pin models-perf-benchmark-data in the Dockerfile to
+#                                         a branch head or a full SHA (default: stable)
 #
-# The merge is never committed by this script. Ownership rules live next to it.
+# Nothing is committed by this script. Ownership rules live next to it.
 set -eu
 
 UPSTREAM_REPOSITORY=${UPSTREAM_REPOSITORY:-https://github.com/red-hat-data-services/model-metadata-collection.git}
 UPSTREAM_BRANCH=${UPSTREAM_BRANCH:-main}
+BENCHMARK_DATA_REPOSITORY=${BENCHMARK_DATA_REPOSITORY:-https://github.com/red-hat-data-services/models-perf-benchmark-data.git}
+BENCHMARK_DEFAULT_REF=stable
+BENCHMARK_PIN_FILE=Dockerfile
 # Upstream rhoai-X.Y* branches at or above this version are scanned for fixes.
 # Defaults to the oldest RHOAI version this repository supports.
 RELEASE_BRANCH_MIN=${RELEASE_BRANCH_MIN:-}
@@ -260,6 +266,87 @@ Revision: $revision" "$upstream" >/dev/null 2>&1 || true
     fi
 }
 
+# Full lowercase Git commit SHA, as the Dockerfile and prepare-image.sh require.
+is_revision() {
+    case "$1" in
+        '' | *[!0-9a-f]*) return 1 ;;
+    esac
+    case "${#1}" in
+        40 | 64) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# The benchmark repository is private. Git reads the token only when it asks
+# for one; it never goes into a URL, a command argument, or Git configuration.
+# Credentials come from the same places as make docker-build.
+benchmark_git_auth() {
+    token=
+    if [ -n "${GITHUB_TOKEN_FILE:-}" ]; then
+        token=$(cat "$GITHUB_TOKEN_FILE")
+    elif [ -n "${GITHUB_TOKEN:-}" ]; then
+        token=$GITHUB_TOKEN
+    elif command -v gh >/dev/null 2>&1; then
+        token=$(gh auth token 2>/dev/null || true)
+    fi
+    [ -n "$token" ] || return 0
+    cat > "$scratch/askpass" <<'ASKPASS'
+#!/bin/sh
+case "$1" in
+    *Username*) printf '%s\n' x-access-token ;;
+    *) printf '%s\n' "$SYNC_MMC_GITHUB_TOKEN" ;;
+esac
+ASKPASS
+    chmod 700 "$scratch/askpass"
+    SYNC_MMC_GITHUB_TOKEN=$token
+    export SYNC_MMC_GITHUB_TOKEN GIT_ASKPASS="$scratch/askpass" GIT_TERMINAL_PROMPT=0
+}
+
+# Point the Dockerfile's BENCHMARK_REVISION at a branch head or a full SHA of
+# models-perf-benchmark-data. Only Git is run against that repository; none of
+# its code is executed.
+benchmark() {
+    ref=${1:-$BENCHMARK_DEFAULT_REF}
+    [ "$(grep -c '^ARG BENCHMARK_REVISION=' "$BENCHMARK_PIN_FILE")" = 1 ] ||
+        die "expected exactly one 'ARG BENCHMARK_REVISION=' line in $BENCHMARK_PIN_FILE"
+    old=$(sed -n 's/^ARG BENCHMARK_REVISION=//p' "$BENCHMARK_PIN_FILE")
+    scratch=$(mktemp -d)
+    trap 'rm -rf "$scratch"' EXIT HUP INT TERM
+    benchmark_git_auth
+
+    if is_revision "$ref"; then
+        revision=$ref
+        source="explicit SHA"
+        object_format=sha1
+        if [ "${#revision}" = 64 ]; then object_format=sha256; fi
+        # A typo or a commit from another repository fails here, not in docker build.
+        git init --quiet --object-format="$object_format" "$scratch/probe"
+        git -C "$scratch/probe" fetch --quiet --depth=1 --no-tags -- "$BENCHMARK_DATA_REPOSITORY" "$revision" 2>/dev/null ||
+            die "commit $revision not found in $BENCHMARK_DATA_REPOSITORY"
+        [ "$(git -C "$scratch/probe" rev-parse FETCH_HEAD)" = "$revision" ] ||
+            die "fetched commit does not match $revision"
+    else
+        case "$ref" in
+            *[!0-9a-f]*) ;;
+            *) die "'$ref' is not a full SHA; pass the full commit SHA or a branch name" ;;
+        esac
+        heads=$(git ls-remote --heads "$BENCHMARK_DATA_REPOSITORY" "refs/heads/$ref") ||
+            die "could not list branches of $BENCHMARK_DATA_REPOSITORY"
+        revision=$(printf '%s\n' "$heads" | awk -v ref="refs/heads/$ref" '$2 == ref { print $1 }')
+        [ -n "$revision" ] || die "branch '$ref' not found in $BENCHMARK_DATA_REPOSITORY"
+        source="branch $ref"
+    fi
+
+    if [ "$revision" = "$old" ]; then
+        echo "Benchmark pin is already $revision ($source)"
+        return 0
+    fi
+    sed "s/^ARG BENCHMARK_REVISION=.*/ARG BENCHMARK_REVISION=$revision/" "$BENCHMARK_PIN_FILE" > "$scratch/pin-file"
+    cat "$scratch/pin-file" > "$BENCHMARK_PIN_FILE"
+    echo "Benchmark pin: $old -> $revision ($source)"
+    echo "Review with 'git diff $BENCHMARK_PIN_FILE'. Run 'make docker-build' to qualify against the new pin."
+}
+
 case "${1:-merge}" in
     merge) merge ;;
     check) check ;;
@@ -267,5 +354,6 @@ case "${1:-merge}" in
         fetch_upstream
         report_release_fixes
         ;;
-    *) die "usage: $0 [merge|check|detect]" ;;
+    benchmark) benchmark "${2:-}" ;;
+    *) die "usage: $0 [merge|check|detect|benchmark [REF]]" ;;
 esac

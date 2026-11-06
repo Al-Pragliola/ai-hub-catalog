@@ -90,6 +90,36 @@ For each reported commit, either forward-port the fix to `main`, preferably
 upstream, or record it in [`acknowledged-commits`](acknowledged-commits) with a
 reason.
 
+## Benchmark pin
+
+The image build fetches the private
+[`models-perf-benchmark-data`](https://github.com/red-hat-data-services/models-perf-benchmark-data)
+repository at the commit pinned in `ARG BENCHMARK_REVISION=` in the
+`Dockerfile`. Moving that pin is separate from an mmc sync; run it on its own
+branch, or on a sync branch when the two belong together:
+
+```sh
+make sync-benchmark                  # head of stable
+make sync-benchmark REF=main         # head of another branch
+make sync-benchmark REF=<full-sha>   # an exact commit
+```
+
+`REF` is a branch name or a full commit SHA. It defaults to `stable`. The
+command resolves a branch to its head SHA, checks that a SHA exists in the
+repository, rewrites only the pin line, and prints the old and new pin. It
+fails on a short SHA, an unknown branch or commit, or a `Dockerfile` without
+exactly one pin line. It does not commit, and it does not check that the new pin
+is newer than the old one or approved for release: moving to a branch that is
+behind the current pin works. Check where a branch stands before using it.
+
+Run `make docker-build` afterwards. Qualification runs against the new pin and
+the catalogs in the build, and a release build also requires the pinned commit
+to be approved for release.
+
+The command needs read access to the benchmark repository. Credentials come from
+`GITHUB_TOKEN_FILE`, `GITHUB_TOKEN`, or an existing `gh` login, in that order,
+as for `make docker-build`. Git only receives the token when it asks for one.
+
 ## Files
 
 | File | Purpose |
@@ -98,7 +128,9 @@ reason.
 | [`upstream-paths`](upstream-paths) | Paths taken whole from upstream |
 | [`plumbing-paths`](plumbing-paths) | Build and CI paths the detector ignores |
 | [`acknowledged-commits`](acknowledged-commits) | Release-branch commits no longer reported |
-| [`sync-mmc.sh`](sync-mmc.sh) | `merge`, `check`, and `detect` |
+| [`sync-mmc.sh`](sync-mmc.sh) | `merge`, `check`, `detect`, and `benchmark` |
+| [`test-sync-benchmark.sh`](test-sync-benchmark.sh) | Offline test of the benchmark pin update, run by `make ci` |
 
 `UPSTREAM_REPOSITORY`, `UPSTREAM_BRANCH`, and `RELEASE_BRANCH_MIN` override the
-defaults. The script needs Git 2.36 or later, Go, Make, and Python 3.
+defaults, and `BENCHMARK_DATA_REPOSITORY` overrides the benchmark repository.
+The script needs Git 2.36 or later, Go, Make, and Python 3.
